@@ -11,9 +11,17 @@ class App:
     def __init__(self):
         self.window = Tk() 
         self.window.title('Test Window')
-        self.window.geometry('1280x720+0+0')
+        self.window.geometry('1920x1080+0+0')
+
+        self.canvas = Canvas(self.window, bg="blue", height=250, width=300)
         
+        # Holds all Excel File Information
         self.data = None
+
+        # Plot Information
+        self.figure = plt.Figure(figsize=(6,5), dpi=100)
+        self.ax = self.figure.add_subplot(111)
+        self.chart_type = FigureCanvasTkAgg(self.figure, self.canvas)
 
         # Defaulting to Newest page of Excel
         self.option = ''
@@ -82,37 +90,28 @@ class App:
 
         # Gathering Data
         hours_data = self.gather_hours_data()
-        histogram_data = hours_data[['Month/Year', 'Available Hours']]
+        histogram_data = hours_data[['Month/Year', 'Available Hours']].reset_index()
         
+        self.refresh_page()
+
         # Creating Graph Template
-        figure = plt.Figure(figsize=(6,5), dpi=100)
-        ax = figure.add_subplot(111)
-        chart_type = FigureCanvasTkAgg(figure, self.window)
-        chart_type.get_tk_widget().pack()
-
-        # Filtering Data
-        histogram_data = histogram_data[['Month/Year', 'Available Hours']].groupby('Month/Year').sum()
-        histogram_data['color'] = ['r' if histogram_data['Available Hours'][j] < 0 else 'g' for j in range(len(histogram_data))]
-
-        negatives, positives = pd.DataFrame(), pd.DataFrame()
-        negatives['Available Hours'], positives['Available Hours'] = histogram_data['Available Hours'], histogram_data['Available Hours']
-        negatives['color'], positives['color'] = histogram_data['color'], histogram_data['color']
+        self.chart_type.get_tk_widget().pack()
         
-        for i in range(len(histogram_data['color'])):
-            if histogram_data['color'][i] == 'g':
-                positives['Available Hours'][i] = histogram_data['Available Hours'][i]
-                negatives['Available Hours'][i] = 0
-            elif histogram_data['color'][i] == 'r':
-                negatives['Available Hours'][i] = histogram_data['Available Hours'][i]
-                positives['Available Hours'][i] = 0
+        # Filtering Data
+        histogram_data['color'] = ['r' if list(histogram_data['Available Hours'])[j] < 0 else 'g' for j in range(len(histogram_data))]
+        ahList, cList = list(histogram_data['Available Hours']), list(histogram_data['color'])
 
-            negatives['color'] = 'r'
-            positives['color'] = 'g'
+        # Splitting Data
+        negatives, positives = pd.DataFrame(), pd.DataFrame()
+        negatives['Available Hours'] = [ahList[i] if cList[i] == 'r' else 0 for i in range(len(cList))]
+        positives['Available Hours'] = [ahList[i] if cList[i] == 'g' else 0 for i in range(len(cList))]
+        negatives['color'], positives['color'] = ['r' for _ in histogram_data['color']], ['g' for _ in histogram_data['color']]
+        negatives['Month/Year'], positives['Month/Year'] = histogram_data['Month/Year'], histogram_data['Month/Year']
 
-        negatives.plot.bar(legend=True, ax=ax, color=list(negatives['color']))
-        positives.plot.bar(legend=True, ax=ax, color=list(positives['color']))
-        # histogram_data[['Month/Year', 'totalHours']].plot.bar(legend=True, ax=ax, color=list(histogram_data['color']), x='Month/Year'),
-        ax.set_title('Total Hours Needed For Month')
+        # Plotting Data
+        negatives.plot.bar(legend=True, ax=self.ax, color=list(negatives['color']), x='Month/Year')
+        positives.plot.bar(legend=True, ax=self.ax, color=list(positives['color']), x='Month/Year')
+        self.ax.set_title('Total Hours Needed For Month')
 
     def capacityChart(self, _):
 
@@ -124,11 +123,16 @@ class App:
         hours_data = self.gather_hours_data()
         histogram_data = hours_data[['Month/Year', '100% CAP', '90% CAP', 'RESERVED MTS-ESS', 'DC', 'VanCraft', 'CubeSmart']].reset_index()
 
+        monthyear = histogram_data['Month/Year']
+
+        self.refresh_page()
+
         # Creating Graph Template
-        figure = plt.Figure(figsize=(6,5), dpi=100)
-        ax = figure.add_subplot(111)
-        chart_type = FigureCanvasTkAgg(figure, self.window)
-        chart_type.get_tk_widget().pack()
+        # figure = plt.Figure(figsize=(6,5), dpi=100)
+        # ax = self.figure.add_subplot(111)
+        # chart_type = FigureCanvasTkAgg(figure, self.window)
+        # chart_type.get_tk_widget().pack()
+        self.chart_type.get_tk_widget().pack()
 
         # Filtering Data
         histogram_data['totalHours'] = histogram_data['RESERVED MTS-ESS'] + histogram_data['DC'] + histogram_data['VanCraft'] + histogram_data['CubeSmart']
@@ -143,38 +147,49 @@ class App:
         negatives['totalHours'] = [histogram_data['totalHours'][i] if histogram_data['color'][i] == 'r' else 0 for i in range(len(histogram_data['color']))]
         mehs['totalHours']      = [histogram_data['totalHours'][i] if histogram_data['color'][i] == 'y' else 0 for i in range(len(histogram_data['color']))]
         positives['totalHours'] = [histogram_data['totalHours'][i] if histogram_data['color'][i] == 'g' else 0 for i in range(len(histogram_data['color']))]
+        negatives['Month/Year'], mehs['Month/Year'], positives['Month/Year'] = monthyear, monthyear, monthyear
         negatives['color'], mehs['color'], positives['color'] = ['r' for _ in histogram_data['color']], ['y' for _ in histogram_data['color']], ['g' for _ in histogram_data['color']]
 
-        histogram_data[['Month/Year', 'totalHours']].plot.bar(legend=True, ax=ax, color=list(histogram_data['color']), x='Month/Year'),
+        # Plotting Data
+        positives.plot.bar(legend=True, ax=self.ax, color=list(positives['color']), x='Month/Year')
+        mehs.plot.bar(legend=True, ax=self.ax, color=list(mehs['color']), x='Month/Year')
+        negatives.plot.bar(legend=True, ax=self.ax, color=list(negatives['color']), x='Month/Year')
         
-        positives.plot.bar(legend=True, ax=ax, color=list(positives['color']))
-        mehs.plot.bar(legend=True, ax=ax, color=list(mehs['color']))
-        negatives.plot.bar(legend=True, ax=ax, color=list(negatives['color']))
-        
-        histogram_data[['Month/Year', '100% CAP']].plot.line(legend=True, ax=ax, color='r', x='Month/Year')
-        histogram_data[['Month/Year', '90% CAP']].plot.line(legend=True, ax=ax, color='y', x='Month/Year')
-        ax.set_title('Hours Working For Month')
+        histogram_data[['Month/Year', '100% CAP']].plot.line(legend=True, ax=self.ax, color='r', x='Month/Year')
+        histogram_data[['Month/Year', '90% CAP']].plot.line(legend=True, ax=self.ax, color='y', x='Month/Year')
+        self.ax.set_title('Hours Working For Month')
+
+    def refresh_page(self):
+        sheets = pd.ExcelFile(self.file_directory)
+            
+        self.data = sheets.parse(sheets.sheet_names)
+        self.option = sheets.sheet_names[-1]
+            
+        # Creating Buttons For Visualizing Dataset
+        b1 = self.create_button(10, 10, 'Hours Available For Month')
+        b2 = self.create_button(10, 45, 'Hours Working For Month')
+        b3 = self.create_button(10, 80, '???')
+
+        self.create_label(10, 115, 'Please Select A Page', 'black', fontsize=12)
+        self.dd1 = self.create_dropdown(sheets.sheet_names, 10, 140)
+
+        # Creating Functions for the buttons
+        b1.bind('<Button-1>', self.AvailableHoursChart)
+        b2.bind('<Button-1>', self.capacityChart)
+        # b3.bind('<Button-1>', self.visualize_data)
+
+        # Resetting Plotting Window
+        self.canvas.destroy()
+        self.canvas = Canvas(self.window, bg="blue", height=250, width=300)
+        self.canvas.pack()
+
+        self.figure = plt.Figure(figsize=(6,5), dpi=100)
+        self.ax = self.figure.add_subplot(111)
+        self.chart_type = FigureCanvasTkAgg(self.figure, self.canvas)
 
     def open_file(self):
         self.file_directory = fd.askopenfilename(title="Open a File", filetypes=(("xlxs files", ".*xlsx"), ("csv files", "*.*csv")))
-        if '.xlsx' in self.file_directory:
-            sheets = pd.ExcelFile(self.file_directory)
-            
-            self.data = sheets.parse(sheets.sheet_names)
-            self.option = sheets.sheet_names[-1]
-            
-            # Creating Buttons For Visualizing Dataset
-            b1 = self.create_button(10, 10, 'Hours Available For Month')
-            b2 = self.create_button(10, 45, 'Hours Working For Month')
-            b3 = self.create_button(10, 80, '???')
-
-            self.create_label(10, 115, 'Please Select A Page', 'black', fontsize=12)
-            self.dd1 = self.create_dropdown(sheets.sheet_names, 10, 140)
-
-            # Creating Functions for the buttons
-            b1.bind('<Button-1>', self.AvailableHoursChart)
-            b2.bind('<Button-1>', self.capacityChart)
-            # b3.bind('<Button-1>', self.visualize_data)
+        if '.xlsx' in self.file_directory: self.refresh_page()
 
 def main():
     app = App()
@@ -190,6 +205,7 @@ if __name__ == '__main__':
 
 # TODO
 '''
+    Grab Window Size and use that for dimensions
     Get graphs to reset
     Fix graph displays
         Axis
