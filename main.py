@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter.ttk import Combobox
 from tkinter import filedialog as fd
+import pandas as pd
 
 class App:
     
@@ -8,7 +9,8 @@ class App:
         self.window = Tk() 
         self.window.title('Test Window')
         self.window.geometry('1280x720+0+0')
-        self.file_directory = ''
+        
+        self.data = None
 
     def create_button(self, x, y, text='SAMPLE BUTTON', color='blue'):
         btn=Button(self.window, text=text, fg=color)
@@ -44,26 +46,45 @@ class App:
         C1 = Checkbutton(self.window, text = text, variable = v1)
         C1.place(x=x, y=y)
         
-    def create_window_dropdown(self):
+    def create_window_dropdown(self, label):
         m = Menu(self.window)
         self.window.config(menu=m)
         file_menu = Menu(m, tearoff=False)
-        m.add_cascade(label="Menu", menu=file_menu)
-        file_menu.add_command(label="Open File", command=self.open_file)
+        m.add_cascade(label=label, menu=file_menu)
+        return file_menu
+
+    def create_tab_for_menu(self, file_menu, label, function):
+        file_menu.add_command(label=label, command=function)
+
+    def visualize_data(self):
+        
+        main = self.data[7:]
+        header = ['Month/Year', '100% CAP', '90% CAP', 'RESERVED MTS-ESS', 'DC', 'VanCraft', 'CubeSmart', 'Available Hours', 'Confirmed Hours', 'Confirmed Details', 11, 12, 13, 14, 15, 16]
+        main.columns = header
+        
+        main = main.drop([11, 12, 13, 14, 15, 16, 'Confirmed Details'], axis=1)
+        main = main.drop(7, axis=0)
+        # print(main)
+        print(main.head())
 
     # *** TRIGGERED FUNCTIONS *** #
     def open_file(self):
-        self.file_directory = fd.askopenfilename()
+        self.file_directory = fd.askopenfilename(title="Open a File", filetypes=(("xlxs files", ".*xlsx"), ("csv files", "*.*csv")))
+        if '.xlsx' in self.file_directory:
+            self.data = pd.read_excel(
+                io=self.file_directory,
+                engine='openpyxl'
+            )
+            self.visualize_data()
 
-    def buttonClicked(self):
-        # print(filename)
-        pass
+
 
 def main():
     app = App()
 
     # app.create_button(10, 10, 'open file')
-    app.create_window_dropdown()
+    menu1 = app.create_window_dropdown('Menu')
+    app.create_tab_for_menu(menu1, 'Open...', app.open_file)
     # app.create_label(60, 50)
     # app.create_textentry(80, 150)
     # app.create_dropdown(("one", "two", "three", "four"), 60, 150)
